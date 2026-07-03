@@ -66,7 +66,17 @@ async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
 @ban.error
 async def ban_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ You don't have permission to use this command.",
+            discord.Color.red()
+        ))
+    elif isinstance(error, commands.BadArgument):
+        await ctx.reply(embed=make_embed(
+            "Invalid User",
+            "❌ Please mention a valid user to ban.",
+            discord.Color.red()
+        ))
 
 
 # ================= UNBAN ================= #
@@ -75,14 +85,30 @@ async def ban_error(ctx, error):
 @commands.has_permissions(ban_members=True)
 async def unban(ctx, user_id: int):
     try:
-        user = await bot.fetch_user(user_id)
-        await ctx.guild.unban(user)
+        banned_users = await ctx.guild.bans()
+        target_user = None
+
+        for ban_entry in banned_users:
+            if ban_entry.user.id == user_id:
+                target_user = ban_entry.user
+                break
+
+        if target_user is None:
+            return await ctx.reply(embed=make_embed(
+                title="User Not Banned",
+                description="❌ That user is not banned or the ID is invalid.",
+                color=discord.Color.red()
+            ))
+
+        await ctx.guild.unban(target_user)
+
         embed = make_embed(
             title="User Unbanned",
-            description=f"✅ {user} has been unbanned.",
+            description=f"✅ {target_user} has been unbanned.",
             color=discord.Color.green()
         )
         await ctx.reply(embed=embed)
+
     except Exception:
         embed = make_embed(
             title="Error",
@@ -95,7 +121,17 @@ async def unban(ctx, user_id: int):
 @unban.error
 async def unban_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ You don't have permission to use this command.",
+            discord.Color.red()
+        ))
+    elif isinstance(error, commands.BadArgument):
+        await ctx.reply(embed=make_embed(
+            "Invalid User ID",
+            "❌ Please provide a valid numeric user ID.",
+            discord.Color.red()
+        ))
 
 
 # ================= KICK ================= #
@@ -123,7 +159,11 @@ async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
 @kick.error
 async def kick_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ You don't have permission to use this command.",
+            discord.Color.red()
+        ))
 
 
 # ================= MUTE ================= #
@@ -142,7 +182,11 @@ async def mute(ctx, member: discord.Member, duration: str):
         elif unit == "d":
             delta = timedelta(days=amount)
         else:
-            return await ctx.reply(embed=make_embed("Invalid Duration", "❌ Use m, h, or d.", discord.Color.red()))
+            return await ctx.reply(embed=make_embed(
+                "Invalid Duration",
+                "❌ Use m, h, or d.",
+                discord.Color.red()
+            ))
 
         await member.timeout(delta)
         embed = make_embed(
@@ -153,7 +197,11 @@ async def mute(ctx, member: discord.Member, duration: str):
         await ctx.reply(embed=embed)
 
     except ValueError:
-        await ctx.reply(embed=make_embed("Invalid Duration", "❌ Use a valid duration like `10m`, `2h`, or `1d`.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Invalid Duration",
+            "❌ Use a valid duration like `10m`, `2h`, or `1d`.",
+            discord.Color.red()
+        ))
     except Exception:
         await ctx.reply(embed=make_embed("Error", "❌ Failed to mute user.", discord.Color.red()))
 
@@ -161,7 +209,11 @@ async def mute(ctx, member: discord.Member, duration: str):
 @mute.error
 async def mute_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ You don't have permission to use this command.",
+            discord.Color.red()
+        ))
 
 
 # ================= UNMUTE ================= #
@@ -184,7 +236,11 @@ async def unmute(ctx, member: discord.Member):
 @unmute.error
 async def unmute_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ You don't have permission to use this command.",
+            discord.Color.red()
+        ))
 
 
 # ================= WARN ================= #
@@ -217,7 +273,11 @@ async def warn(ctx, member: discord.Member, *, reason="No reason provided"):
 @warn.error
 async def warn_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ You don't have permission to use this command.",
+            discord.Color.red()
+        ))
 
 
 # ================= WARNINGS ================= #
@@ -287,7 +347,11 @@ async def purge(ctx, amount: int):
 @purge.error
 async def purge_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ You don't have permission to use this command.",
+            discord.Color.red()
+        ))
 
 
 # ================= ROLE ================= #
@@ -298,15 +362,27 @@ async def role(ctx, member: discord.Member, *, role_name):
     role = discord.utils.get(ctx.guild.roles, name=role_name)
 
     if role is None:
-        return await ctx.reply(embed=make_embed("Role Not Found", "❌ Role not found.", discord.Color.red()))
+        return await ctx.reply(embed=make_embed(
+            "Role Not Found",
+            "❌ Role not found.",
+            discord.Color.red()
+        ))
 
     try:
         if role in member.roles:
             await member.remove_roles(role)
-            await ctx.reply(embed=make_embed("Role Removed", f"✅ Role removed from {member.mention}.", discord.Color.green()))
+            await ctx.reply(embed=make_embed(
+                "Role Removed",
+                f"✅ Role removed from {member.mention}.",
+                discord.Color.green()
+            ))
         else:
             await member.add_roles(role)
-            await ctx.reply(embed=make_embed("Role Added", f"✅ Role added to {member.mention}.", discord.Color.green()))
+            await ctx.reply(embed=make_embed(
+                "Role Added",
+                f"✅ Role added to {member.mention}.",
+                discord.Color.green()
+            ))
     except Exception:
         await ctx.reply(embed=make_embed("Error", "❌ Failed to edit role.", discord.Color.red()))
 
@@ -462,7 +538,11 @@ async def say(ctx, *, message):
 @say.error
 async def say_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ You don't have permission to use this command.",
+            discord.Color.red()
+        ))
 
 
 # ================= SNIPE ================= #
