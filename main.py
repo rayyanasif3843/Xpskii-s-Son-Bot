@@ -583,4 +583,4 @@ async def leave(ctx):
 
         await ctx.reply(embed=embed)
 
-  bot.run (TOKEN)
+  bot.run(TOKEN)
