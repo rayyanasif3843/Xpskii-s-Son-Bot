@@ -6,6 +6,9 @@ from datetime import timedelta
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 
+if not TOKEN:
+    raise ValueError("DISCORD_TOKEN environment variable is not set.")
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -29,6 +32,10 @@ def save_warnings(data):
         json.dump(data, f, indent=4)
 
 
+def make_embed(title=None, description=None, color=discord.Color.blurple()):
+    return discord.Embed(title=title, description=description, color=color)
+
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
@@ -41,15 +48,25 @@ async def on_ready():
 async def ban(ctx, member: discord.Member, *, reason="No reason provided"):
     try:
         await member.ban(reason=reason)
-        await ctx.reply(f"✅ Banned {member.mention}\nReason: {reason}")
+        embed = make_embed(
+            title="User Banned",
+            description=f"✅ {member.mention} has been banned.\n**Reason:** {reason}",
+            color=discord.Color.red()
+        )
+        await ctx.reply(embed=embed)
     except Exception:
-        await ctx.reply("❌ Failed to ban user.")
+        embed = make_embed(
+            title="Error",
+            description="❌ Failed to ban user.",
+            color=discord.Color.red()
+        )
+        await ctx.reply(embed=embed)
 
 
 @ban.error
 async def ban_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply("❌ You don't have permission to use this command.")
+        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
 
 
 # ================= UNBAN ================= #
@@ -60,15 +77,25 @@ async def unban(ctx, user_id: int):
     try:
         user = await bot.fetch_user(user_id)
         await ctx.guild.unban(user)
-        await ctx.reply(f"✅ Unbanned {user}")
+        embed = make_embed(
+            title="User Unbanned",
+            description=f"✅ {user} has been unbanned.",
+            color=discord.Color.green()
+        )
+        await ctx.reply(embed=embed)
     except Exception:
-        await ctx.reply("❌ Failed to unban user.")
+        embed = make_embed(
+            title="Error",
+            description="❌ Failed to unban user.",
+            color=discord.Color.red()
+        )
+        await ctx.reply(embed=embed)
 
 
 @unban.error
 async def unban_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply("❌ You don't have permission to use this command.")
+        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
 
 
 # ================= KICK ================= #
@@ -78,15 +105,25 @@ async def unban_error(ctx, error):
 async def kick(ctx, member: discord.Member, *, reason="No reason provided"):
     try:
         await member.kick(reason=reason)
-        await ctx.reply(f"✅ Kicked {member.mention}\nReason: {reason}")
+        embed = make_embed(
+            title="User Kicked",
+            description=f"✅ {member.mention} has been kicked.\n**Reason:** {reason}",
+            color=discord.Color.orange()
+        )
+        await ctx.reply(embed=embed)
     except Exception:
-        await ctx.reply("❌ Failed to kick user.")
+        embed = make_embed(
+            title="Error",
+            description="❌ Failed to kick user.",
+            color=discord.Color.red()
+        )
+        await ctx.reply(embed=embed)
 
 
 @kick.error
 async def kick_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply("❌ You don't have permission to use this command.")
+        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
 
 
 # ================= MUTE ================= #
@@ -105,19 +142,26 @@ async def mute(ctx, member: discord.Member, duration: str):
         elif unit == "d":
             delta = timedelta(days=amount)
         else:
-            return await ctx.reply("❌ Use m, h, or d.")
+            return await ctx.reply(embed=make_embed("Invalid Duration", "❌ Use m, h, or d.", discord.Color.red()))
 
         await member.timeout(delta)
-        await ctx.reply(f"✅ Muted {member.mention} for {duration}")
+        embed = make_embed(
+            title="Member Muted",
+            description=f"✅ {member.mention} has been muted for **{duration}**.",
+            color=discord.Color.orange()
+        )
+        await ctx.reply(embed=embed)
 
+    except ValueError:
+        await ctx.reply(embed=make_embed("Invalid Duration", "❌ Use a valid duration like `10m`, `2h`, or `1d`.", discord.Color.red()))
     except Exception:
-        await ctx.reply("❌ Failed to mute user.")
+        await ctx.reply(embed=make_embed("Error", "❌ Failed to mute user.", discord.Color.red()))
 
 
 @mute.error
 async def mute_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply("❌ You don't have permission to use this command.")
+        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
 
 
 # ================= UNMUTE ================= #
@@ -127,15 +171,20 @@ async def mute_error(ctx, error):
 async def unmute(ctx, member: discord.Member):
     try:
         await member.timeout(None)
-        await ctx.reply(f"✅ Unmuted {member.mention}")
+        embed = make_embed(
+            title="Member Unmuted",
+            description=f"✅ {member.mention} has been unmuted.",
+            color=discord.Color.green()
+        )
+        await ctx.reply(embed=embed)
     except Exception:
-        await ctx.reply("❌ Failed to unmute user.")
+        await ctx.reply(embed=make_embed("Error", "❌ Failed to unmute user.", discord.Color.red()))
 
 
 @unmute.error
 async def unmute_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply("❌ You don't have permission to use this command.")
+        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
 
 
 # ================= WARN ================= #
@@ -157,13 +206,18 @@ async def warn(ctx, member: discord.Member, *, reason="No reason provided"):
     data[guild_id][user_id].append(reason)
     save_warnings(data)
 
-    await ctx.reply(f"✅ Warned {member.mention}\nReason: {reason}")
+    embed = make_embed(
+        title="User Warned",
+        description=f"✅ {member.mention} has been warned.\n**Reason:** {reason}",
+        color=discord.Color.gold()
+    )
+    await ctx.reply(embed=embed)
 
 
 @warn.error
 async def warn_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply("❌ You don't have permission to use this command.")
+        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
 
 
 # ================= WARNINGS ================= #
@@ -203,9 +257,17 @@ async def clearwarnings(ctx, member: discord.Member):
     if guild_id in data and user_id in data[guild_id]:
         data[guild_id][user_id] = []
         save_warnings(data)
-        await ctx.reply(f"✅ Cleared warnings for {member.mention}")
+        await ctx.reply(embed=make_embed(
+            title="Warnings Cleared",
+            description=f"✅ Cleared warnings for {member.mention}.",
+            color=discord.Color.green()
+        ))
     else:
-        await ctx.reply("❌ User has no warnings.")
+        await ctx.reply(embed=make_embed(
+            title="No Warnings",
+            description="❌ User has no warnings.",
+            color=discord.Color.red()
+        ))
 
 
 # ================= PURGE ================= #
@@ -214,14 +276,18 @@ async def clearwarnings(ctx, member: discord.Member):
 @commands.has_permissions(manage_messages=True)
 async def purge(ctx, amount: int):
     await ctx.channel.purge(limit=amount + 1)
-    msg = await ctx.send(f"✅ Deleted {amount} messages.")
+    msg = await ctx.send(embed=make_embed(
+        title="Purge Complete",
+        description=f"✅ Deleted {amount} messages.",
+        color=discord.Color.green()
+    ))
     await msg.delete(delay=3)
 
 
 @purge.error
 async def purge_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply("❌ You don't have permission to use this command.")
+        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
 
 
 # ================= ROLE ================= #
@@ -232,17 +298,17 @@ async def role(ctx, member: discord.Member, *, role_name):
     role = discord.utils.get(ctx.guild.roles, name=role_name)
 
     if role is None:
-        return await ctx.reply("❌ Role not found.")
+        return await ctx.reply(embed=make_embed("Role Not Found", "❌ Role not found.", discord.Color.red()))
 
     try:
         if role in member.roles:
             await member.remove_roles(role)
-            await ctx.reply(f"✅ Role removed from {member.mention}")
+            await ctx.reply(embed=make_embed("Role Removed", f"✅ Role removed from {member.mention}.", discord.Color.green()))
         else:
             await member.add_roles(role)
-            await ctx.reply(f"✅ Role added to {member.mention}")
+            await ctx.reply(embed=make_embed("Role Added", f"✅ Role added to {member.mention}.", discord.Color.green()))
     except Exception:
-        await ctx.reply("❌ Failed to edit role.")
+        await ctx.reply(embed=make_embed("Error", "❌ Failed to edit role.", discord.Color.red()))
 
 
 # ================= LOCK ================= #
@@ -253,12 +319,9 @@ async def lock(ctx):
     overwrite = ctx.channel.overwrites_for(ctx.guild.default_role)
     overwrite.send_messages = False
 
-    await ctx.channel.set_permissions(
-        ctx.guild.default_role,
-        overwrite=overwrite
-    )
+    await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
 
-    await ctx.reply("✅ Channel locked.")
+    await ctx.reply(embed=make_embed("Channel Locked", "✅ Channel locked.", discord.Color.red()))
 
 
 # ================= UNLOCK ================= #
@@ -269,12 +332,9 @@ async def unlock(ctx):
     overwrite = ctx.channel.overwrites_for(ctx.guild.default_role)
     overwrite.send_messages = None
 
-    await ctx.channel.set_permissions(
-        ctx.guild.default_role,
-        overwrite=overwrite
-    )
+    await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
 
-    await ctx.reply("✅ Channel unlocked.")
+    await ctx.reply(embed=make_embed("Channel Unlocked", "✅ Channel unlocked.", discord.Color.green()))
 
 
 # ================= SLOWMODE ================= #
@@ -284,9 +344,13 @@ async def unlock(ctx):
 async def slowmode(ctx, seconds: int):
     try:
         await ctx.channel.edit(slowmode_delay=seconds)
-        await ctx.reply(f"✅ Slowmode set to {seconds} seconds.")
+        await ctx.reply(embed=make_embed(
+            title="Slowmode Updated",
+            description=f"✅ Slowmode set to **{seconds}** seconds.",
+            color=discord.Color.green()
+        ))
     except Exception:
-        await ctx.reply("❌ Failed to set slowmode.")
+        await ctx.reply(embed=make_embed("Error", "❌ Failed to set slowmode.", discord.Color.red()))
 
 
 # ================= PING ================= #
@@ -329,7 +393,7 @@ async def userinfo(ctx, member: discord.Member = None):
         color=discord.Color.blue()
     )
 
-    embed.add_field(name="User ID", value=member.id, inline=False)
+    embed.add_field(name="User ID", value=str(member.id), inline=False)
     embed.add_field(name="Joined Server", value=joined_at, inline=False)
     embed.add_field(name="Account Created", value=member.created_at.strftime("%d/%m/%Y"), inline=False)
     embed.set_thumbnail(url=member.display_avatar.url)
@@ -348,9 +412,9 @@ async def serverinfo(ctx):
         color=discord.Color.gold()
     )
 
-    embed.add_field(name="Members", value=guild.member_count, inline=True)
-    embed.add_field(name="Roles", value=len(guild.roles), inline=True)
-    embed.add_field(name="Channels", value=len(guild.channels), inline=True)
+    embed.add_field(name="Members", value=str(guild.member_count), inline=True)
+    embed.add_field(name="Roles", value=str(len(guild.roles)), inline=True)
+    embed.add_field(name="Channels", value=str(len(guild.channels)), inline=True)
     embed.add_field(name="Owner", value=str(guild.owner), inline=False)
 
     if guild.icon:
@@ -398,7 +462,7 @@ async def say(ctx, *, message):
 @say.error
 async def say_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.reply("❌ You don't have permission to use this command.")
+        await ctx.reply(embed=make_embed("Permission Error", "❌ You don't have permission to use this command.", discord.Color.red()))
 
 
 # ================= SNIPE ================= #
@@ -419,19 +483,17 @@ async def on_message_delete(message):
 @bot.command()
 async def snipe(ctx):
     if ctx.channel.id not in sniped_messages:
-        return await ctx.reply(
-            embed=discord.Embed(
-                title="Snipe",
-                description="No deleted messages found.",
-                color=discord.Color.red()
-            )
-        )
+        return await ctx.reply(embed=discord.Embed(
+            title="Snipe",
+            description="No deleted messages found.",
+            color=discord.Color.red()
+        ))
 
     content, author = sniped_messages[ctx.channel.id]
 
     embed = discord.Embed(
         title="Deleted Message",
-        description=content,
+        description=content if content else "*No text content*",
         color=discord.Color.orange()
     )
     embed.set_footer(text=f"Author: {author}")
@@ -444,28 +506,32 @@ async def snipe(ctx):
 @bot.command()
 async def play(ctx, *, url):
     if not ctx.author.voice:
-        return await ctx.reply(
-            embed=discord.Embed(
-                description="❌ Join a voice channel first.",
-                color=discord.Color.red()
-            )
-        )
+        return await ctx.reply(embed=discord.Embed(
+            description="❌ Join a voice channel first.",
+            color=discord.Color.red()
+        ))
 
     vc = ctx.voice_client
 
     if vc is None:
         vc = await ctx.author.voice.channel.connect()
 
-    source = discord.FFmpegPCMAudio(url)
-    vc.play(source)
+    try:
+        source = discord.FFmpegPCMAudio(url)
+        vc.play(source)
 
-    embed = discord.Embed(
-        title="🎵 Music",
-        description="Playing audio.",
-        color=discord.Color.green()
-    )
-
-    await ctx.reply(embed=embed)
+        embed = discord.Embed(
+            title="🎵 Music",
+            description="Playing audio.",
+            color=discord.Color.green()
+        )
+        await ctx.reply(embed=embed)
+    except Exception:
+        await ctx.reply(embed=discord.Embed(
+            title="Error",
+            description="❌ Failed to play audio.",
+            color=discord.Color.red()
+        ))
 
 
 # ================= LEAVE ================= #
@@ -474,18 +540,15 @@ async def play(ctx, *, url):
 async def leave(ctx):
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
-
-        embed = discord.Embed(
+        await ctx.reply(embed=discord.Embed(
             description="✅ Left voice channel.",
             color=discord.Color.green()
-        )
-        await ctx.reply(embed=embed)
+        ))
     else:
-        embed = discord.Embed(
+        await ctx.reply(embed=discord.Embed(
             description="❌ Not connected to a voice channel.",
             color=discord.Color.red()
-        )
-        await ctx.reply(embed=embed)
+        ))
 
 
 bot.run(TOKEN)
