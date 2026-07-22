@@ -64,6 +64,33 @@ def parse_duration(duration: str):
     return None
 
 
+def find_role(guild: discord.Guild, query: str):
+    """
+    Find a role by:
+    - exact name match
+    - case-insensitive exact match
+    - partial case-insensitive match
+    """
+    query = query.strip().lower()
+
+    # Exact / case-insensitive exact match first
+    for role in guild.roles:
+        if role.name.lower() == query:
+            return role
+
+    # Partial match next
+    matches = [role for role in guild.roles if query in role.name.lower()]
+
+    if len(matches) == 1:
+        return matches[0]
+
+    # If multiple matches, return the shortest / most likely one
+    if len(matches) > 1:
+        return sorted(matches, key=lambda r: len(r.name))[0]
+
+    return None
+
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
@@ -378,31 +405,37 @@ async def purge_error(ctx, error):
 
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def role(ctx, member: discord.Member, role_name: str):
-    role = discord.utils.get(ctx.guild.roles, name=role_name)
+async def role(ctx, member: discord.Member, *, role_name: str):
+    role_obj = find_role(ctx.guild, role_name)
 
-    if role is None:
+    if role_obj is None:
         return await ctx.reply(embed=make_embed(
             "Role Not Found",
-            "❌ Role not found.",
+            f"❌ Role `{role_name}` not found.",
             discord.Color.red()
         ))
 
     try:
-        if role in member.roles:
-            await member.remove_roles(role)
+        if role_obj in member.roles:
+            await member.remove_roles(role_obj)
             await ctx.reply(embed=make_embed(
                 "Role Removed",
-                f"✅ Role removed from {member.mention}.",
+                f"✅ Role **{role_obj.name}** removed from {member.mention}.",
                 discord.Color.green()
             ))
         else:
-            await member.add_roles(role)
+            await member.add_roles(role_obj)
             await ctx.reply(embed=make_embed(
                 "Role Added",
-                f"✅ Role added to {member.mention}.",
+                f"✅ Role **{role_obj.name}** added to {member.mention}.",
                 discord.Color.green()
             ))
+    except discord.Forbidden:
+        await ctx.reply(embed=make_embed(
+            "Permission Error",
+            "❌ I don't have permission to manage that role, or the role is above my highest role.",
+            discord.Color.red()
+        ))
     except Exception:
         await ctx.reply(embed=make_embed("Error", "❌ Failed to edit role.", discord.Color.red()))
 
@@ -511,7 +544,14 @@ async def serverinfo(ctx):
     embed.add_field(name="Members", value=str(guild.member_count), inline=True)
     embed.add_field(name="Roles", value=str(len(guild.roles)), inline=True)
     embed.add_field(name="Channels", value=str(len(guild.channels)), inline=True)
-    embed.add_field(name="Owner", value=str(guild.owner), inline=False)
+
+    owner = guild.owner
+    if owner is None:
+        owner_text = "Unknown"
+    else:
+        owner_text = str(owner)
+
+    embed.add_field(name="Owner", value=owner_text, inline=False)
 
     if guild.icon:
         embed.set_thumbnail(url=guild.icon.url)
@@ -616,6 +656,11 @@ async def play(ctx, *, url):
 
     if vc is None:
         vc = await ctx.author.voice.channel.connect()
+    elif vc.channel != ctx.author.voice.channel:
+        return await ctx.reply(embed=discord.Embed(
+            description="❌ I'm already in another voice channel.",
+            color=discord.Color.red()
+        ))
 
     try:
         source = discord.FFmpegPCMAudio(url)
