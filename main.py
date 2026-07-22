@@ -3,6 +3,7 @@ from discord.ext import commands
 import json
 import os
 from datetime import timedelta
+import re
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -34,6 +35,33 @@ def save_warnings(data):
 
 def make_embed(title=None, description=None, color=discord.Color.blurple()):
     return discord.Embed(title=title, description=description, color=color)
+
+
+def parse_duration(duration: str):
+    """
+    Parse duration strings like:
+    10m = minutes
+    2h = hours
+    1d = days
+    3w = weeks
+    """
+    match = re.fullmatch(r"(\d+)([mhdw])", duration.lower().strip())
+    if not match:
+        return None
+
+    amount = int(match.group(1))
+    unit = match.group(2)
+
+    if unit == "m":
+        return timedelta(minutes=amount)
+    if unit == "h":
+        return timedelta(hours=amount)
+    if unit == "d":
+        return timedelta(days=amount)
+    if unit == "w":
+        return timedelta(weeks=amount)
+
+    return None
 
 
 @bot.event
@@ -172,19 +200,11 @@ async def kick_error(ctx, error):
 @commands.has_permissions(moderate_members=True)
 async def mute(ctx, member: discord.Member, duration: str):
     try:
-        unit = duration[-1]
-        amount = int(duration[:-1])
-
-        if unit == "m":
-            delta = timedelta(minutes=amount)
-        elif unit == "h":
-            delta = timedelta(hours=amount)
-        elif unit == "d":
-            delta = timedelta(days=amount)
-        else:
+        delta = parse_duration(duration)
+        if delta is None:
             return await ctx.reply(embed=make_embed(
                 "Invalid Duration",
-                "❌ Use m, h, or d.",
+                "❌ Use a valid duration like `10m`, `2h`, `1d`, or `1w`.",
                 discord.Color.red()
             ))
 
@@ -199,7 +219,7 @@ async def mute(ctx, member: discord.Member, duration: str):
     except ValueError:
         await ctx.reply(embed=make_embed(
             "Invalid Duration",
-            "❌ Use a valid duration like `10m`, `2h`, or `1d`.",
+            "❌ Use a valid duration like `10m`, `2h`, `1d`, or `1w`.",
             discord.Color.red()
         ))
     except Exception:
@@ -335,10 +355,10 @@ async def clearwarnings(ctx, member: discord.Member):
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def purge(ctx, amount: int):
-    await ctx.channel.purge(limit=amount + 1)
+    deleted = await ctx.channel.purge(limit=amount + 1)
     msg = await ctx.send(embed=make_embed(
         title="Purge Complete",
-        description=f"✅ Deleted {amount} messages.",
+        description=f"✅ Deleted {len(deleted) - 1} messages.",
         color=discord.Color.green()
     ))
     await msg.delete(delay=3)
@@ -358,7 +378,7 @@ async def purge_error(ctx, error):
 
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def role(ctx, member: discord.Member, *, role_name):
+async def role(ctx, member: discord.Member, role_name: str):
     role = discord.utils.get(ctx.guild.roles, name=role_name)
 
     if role is None:
@@ -548,6 +568,7 @@ async def say_error(ctx, error):
 # ================= SNIPE ================= #
 
 sniped_messages = {}
+
 
 @bot.event
 async def on_message_delete(message):
